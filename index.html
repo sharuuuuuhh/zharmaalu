@@ -99,30 +99,7 @@
         </div>
 
         <div class="timeline" id="timeline-container">
-          <!-- Chapter 1 -->
-          <div class="timeline-item left visible">
-            <div class="timeline-content">
-              <div class="timeline-date">Chapter 1 — The Spark</div>
-              <h3>First Hello</h3>
-              <p>It started with a simple message, an accidental meeting, or a warm glance. From the very first moment, there was a quiet spark that quickly blossomed into something entirely unexpected and incredibly beautiful.</p>
-            </div>
-          </div>
-          <!-- Chapter 2 -->
-          <div class="timeline-item right visible">
-            <div class="timeline-content">
-              <div class="timeline-date">Chapter 2 — The First Date</div>
-              <h3>Coffee & Hours</h3>
-              <p>We sat down at a quiet corner table, ordering lattes we barely finished because we were too busy talking. The hours passed like minutes, and by the time we walked out, the world felt a little warmer.</p>
-            </div>
-          </div>
-          <!-- Chapter 3 -->
-          <div class="timeline-item left visible">
-            <div class="timeline-content">
-              <div class="timeline-date">Chapter 3 — Our Future</div>
-              <h3>Building Dreams</h3>
-              <p>Now, we walk together hand-in-hand, compiling a gallery of memories and dreaming up all the places we have yet to visit. Each chapter gets better, and the story is only just beginning.</p>
-            </div>
-          </div>
+          <!-- Dynamically populated from JS -->
         </div>
       </div>
     </section>
@@ -150,6 +127,12 @@
         </div>
 
         <div class="form-card">
+          <!-- Form selector tabs -->
+          <div class="form-tabs" style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 1px solid var(--card-border); padding-bottom: 16px;">
+            <button type="button" id="tab-moment" class="tab-btn active" style="flex: 1; padding: 12px; border-radius: 12px; border: none; background: var(--accent-rose); color: white; font-weight: 600; cursor: pointer; transition: all 0.3s ease; font-family: var(--font-sans);">Add Moment to Gallery</button>
+            <button type="button" id="tab-chapter" class="tab-btn" style="flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--card-border); background: transparent; color: var(--text-primary); font-weight: 600; cursor: pointer; transition: all 0.3s ease; font-family: var(--font-sans);">Add Story Chapter</button>
+          </div>
+
           <form id="memory-form">
             <div class="form-group">
               <label for="memory-title">Moment Title</label>
@@ -183,6 +166,31 @@
                 <path d="M5 12h14"/><path d="M12 5v14"/>
               </svg>
               <span>Pin to Gallery</span>
+            </button>
+          </form>
+
+          <!-- Form 2: Story Chapter Form -->
+          <form id="chapter-form" style="display: none;">
+            <div class="form-group">
+              <label for="chapter-date">Chapter Date / Label</label>
+              <input type="text" id="chapter-date" class="form-control" placeholder="e.g., Chapter 4 — First Road Trip, or August 2026" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="chapter-title">Chapter Title</label>
+              <input type="text" id="chapter-title" class="form-control" placeholder="e.g., Lost in the Mountains" required>
+            </div>
+
+            <div class="form-group">
+              <label for="chapter-note">The Story</label>
+              <textarea id="chapter-note" class="form-control" placeholder="Describe this chapter of your love story in detail..." required></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"/><path d="M12 5v14"/>
+              </svg>
+              <span>Add Chapter</span>
             </button>
           </form>
         </div>

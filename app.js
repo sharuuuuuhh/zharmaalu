@@ -37,34 +37,38 @@ document.addEventListener('DOMContentLoaded', () => {
   const disconnectSyncBtn = document.getElementById('disconnect-sync-btn');
   const syncStatusEl = document.getElementById('sync-status');
   const clearAllMemoriesBtn = document.getElementById('clear-all-memories-btn');
+  const tabMoment = document.getElementById('tab-moment');
+  const tabChapter = document.getElementById('tab-chapter');
+  const chapterForm = document.getElementById('chapter-form');
 
   // --- Default Memories Data ---
-  const defaultMemories = [
+  const defaultMemories = [];
+
+  // --- Default Chapters Data ---
+  const defaultChapters = [
     {
       id: 1,
-      title: "Walk Under the Stars",
-      date: "2025-10-15",
-      image: "assets/starry_night.png",
-      note: "Walking home under a blanket of stars, realization dawning that we are meant to be. This night was when everything shifted, and the cold air couldn't touch the warmth in my heart."
+      date: "Chapter 1 — The First Meet",
+      title: "How They Met",
+      note: "They first met at the College, When they met they didnt know about all the things that is waiting for them."
     },
     {
       id: 2,
-      title: "Our First Latte",
-      date: "2025-06-20",
-      image: "assets/cozy_cafe.png",
-      note: "Finding warmth in the winter cold, talking for hours over hot lattes. I didn't want the coffee to end because it meant saying goodbye. Lucky for us, we never had to."
+      date: "Chapter 2 — The Second Chapter",
+      title: "The Friendship Stage",
+      note: "They became so thick friends randomly, He started messaging her, She kinda responded, Still they didnt know that they secretly loved each other"
     },
     {
       id: 3,
-      title: "Ocean Sunset Promise",
-      date: "2026-04-12",
-      image: "assets/beach_sunset.png",
-      note: "Watching the sun dissolve into the ocean, whispering promises for the future. The pink sky reflected in your eyes is my absolute favorite view in the universe."
+      date: "Chapter 3 — Relation Phase",
+      title: "The Proposal",
+      note: "That wasnt actually a proposal, It happened on 10th May 2026 at night, Sharu had a function to attend he was kinda in a bad mood, He called her, she comforted him, After some time they both messaged, Sharu kinda said 'ik uk' type thing, then they both knew that they loved each other, kinda a proposal, Then they became in a relation..."
     }
   ];
 
   // --- State Initialization ---
   let memories = [];
+  let chapters = [];
   let supabase = null;
   let isSyncEnabled = false;
 
@@ -152,6 +156,109 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // --- Timeline Chapters Methods & Rendering ---
+  const loadChapters = async () => {
+    if (isSyncEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'chapters')
+          .maybeSingle();
+        
+        if (data && data.value) {
+          chapters = JSON.parse(data.value);
+        } else {
+          chapters = [...defaultChapters];
+          await supabase.from('settings').upsert({ key: 'chapters', value: JSON.stringify(chapters) });
+        }
+      } catch (err) {
+        console.warn("Could not load chapters from database, using LocalStorage fallback:", err);
+        loadLocalChaptersFallback();
+      }
+    } else {
+      loadLocalChaptersFallback();
+    }
+    renderTimeline();
+  };
+
+  const loadLocalChaptersFallback = () => {
+    chapters = JSON.parse(localStorage.getItem('us_chapters')) || [];
+    if (chapters.length === 0) {
+      chapters = [...defaultChapters];
+      localStorage.setItem('us_chapters', JSON.stringify(chapters));
+    }
+  };
+
+  const saveChapters = async () => {
+    localStorage.setItem('us_chapters', JSON.stringify(chapters));
+    if (isSyncEnabled && supabase) {
+      try {
+        await supabase.from('settings').upsert({ key: 'chapters', value: JSON.stringify(chapters) });
+      } catch (err) {
+        console.error("Failed saving chapters to cloud database:", err);
+      }
+    }
+  };
+
+  const deleteChapter = async (id) => {
+    if (confirm('Are you sure you want to delete this story chapter?')) {
+      chapters = chapters.filter(c => c.id !== id);
+      await saveChapters();
+      await loadChapters();
+      createSparkleBurst(10);
+    }
+  };
+
+  const renderTimeline = () => {
+    const timelineContainer = document.getElementById('timeline-container');
+    if (!timelineContainer) return;
+    
+    timelineContainer.innerHTML = '';
+    
+    if (chapters.length === 0) {
+      timelineContainer.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--text-secondary); width: 100%;">
+          <p style="font-size: 1.2rem;">Our story is empty. Use the form below to add your first chapter!</p>
+        </div>
+      `;
+      return;
+    }
+
+    chapters.forEach((chapter, index) => {
+      const isLeft = index % 2 === 0;
+      const item = document.createElement('div');
+      item.className = `timeline-item ${isLeft ? 'left' : 'right'} visible`;
+      
+      item.innerHTML = `
+        <div class="timeline-content" style="position: relative;">
+          <div class="timeline-date">${chapter.date}</div>
+          <h3 style="padding-right: 24px;">${chapter.title}</h3>
+          <p>${chapter.note}</p>
+          <button class="btn-small delete-chapter-btn" data-id="${chapter.id}" style="position: absolute; top: 12px; right: 12px; padding: 6px; border: none; background: transparent; color: var(--accent-rose); opacity: 0.5; cursor: pointer; transition: opacity 0.2s; display: inline-flex; align-items: center; justify-content: center;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            </svg>
+          </button>
+        </div>
+      `;
+      
+      const deleteBtn = item.querySelector('.delete-chapter-btn');
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteChapter(chapter.id);
+      });
+      
+      item.addEventListener('mouseenter', () => { deleteBtn.style.opacity = '1'; });
+      item.addEventListener('mouseleave', () => { deleteBtn.style.opacity = '0.5'; });
+
+      timelineContainer.appendChild(item);
+    });
+    
+    // Recalculate timeline scroll triggers
+    checkTimelineScroll();
+  };
+
   const migrateLocalDataToCloud = async () => {
     if (!supabase) return;
     try {
@@ -173,12 +280,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const p1 = localStorage.getItem('partner1') || 'Sharu';
       const p2 = localStorage.getItem('partner2') || 'Maalu';
       const annDateStr = localStorage.getItem('us_anniversary') || '2025-06-07';
+      const localChapters = localStorage.getItem('us_chapters');
 
-      await supabase.from('settings').upsert([
+      const settingsUpserts = [
         { key: 'partner1', value: p1 },
         { key: 'partner2', value: p2 },
         { key: 'anniversary', value: annDateStr }
-      ]);
+      ];
+
+      if (localChapters) {
+        settingsUpserts.push({ key: 'chapters', value: localChapters });
+      }
+
+      await supabase.from('settings').upsert(settingsUpserts);
     } catch (err) {
       console.warn("Migration failed. Please check table structure in Supabase SQL editor:", err);
     }
@@ -393,6 +507,68 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('gallery').scrollIntoView({ behavior: 'smooth' });
   });
 
+  // --- Form Tab Switching ---
+  tabMoment.addEventListener('click', () => {
+    tabMoment.classList.add('active');
+    tabMoment.style.background = 'var(--accent-rose)';
+    tabMoment.style.color = 'white';
+    tabMoment.style.border = 'none';
+
+    tabChapter.classList.remove('active');
+    tabChapter.style.background = 'transparent';
+    tabChapter.style.color = 'var(--text-primary)';
+    tabChapter.style.border = '1px solid var(--card-border)';
+
+    memoryForm.style.display = 'block';
+    chapterForm.style.display = 'none';
+  });
+
+  tabChapter.addEventListener('click', () => {
+    tabChapter.classList.add('active');
+    tabChapter.style.background = 'var(--accent-rose)';
+    tabChapter.style.color = 'white';
+    tabChapter.style.border = 'none';
+
+    tabMoment.classList.remove('active');
+    tabMoment.style.background = 'transparent';
+    tabMoment.style.color = 'var(--text-primary)';
+    tabMoment.style.border = '1px solid var(--card-border)';
+
+    chapterForm.style.display = 'block';
+    memoryForm.style.display = 'none';
+  });
+
+  // --- Add Chapter Form Submit ---
+  const chapterDateInput = document.getElementById('chapter-date');
+  const chapterTitleInput = document.getElementById('chapter-title');
+  const chapterNoteInput = document.getElementById('chapter-note');
+
+  chapterForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const date = chapterDateInput.value.trim();
+    const title = chapterTitleInput.value.trim();
+    const note = chapterNoteInput.value.trim();
+
+    const newChapter = {
+      id: Date.now(),
+      date,
+      title,
+      note
+    };
+
+    chapters.push(newChapter);
+    await saveChapters();
+    
+    // Reset Form fields
+    chapterForm.reset();
+
+    await loadChapters();
+    createSparkleBurst(25);
+    
+    document.getElementById('biopic').scrollIntoView({ behavior: 'smooth' });
+  });
+
   const saveLocalMemory = (newMemory) => {
     localStorage.removeItem('us_memories_cleared');
     memories.unshift(newMemory);
@@ -594,6 +770,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await loadNames();
       await loadAnniversary();
       await loadMemories();
+      await loadChapters();
 
       alert("Successfully connected to Supabase! Real-time syncing is now enabled. 🟢");
       toggleModal(false);
@@ -617,6 +794,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loadNames();
       loadAnniversary();
       loadMemories();
+      loadChapters();
 
       toggleModal(false);
       createSparkleBurst(10);
@@ -728,8 +906,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 3500);
 
   // --- Scroll Trigger Timeline Animations ---
-  const timelineItems = document.querySelectorAll('.timeline-item');
   const checkTimelineScroll = () => {
+    const timelineItems = document.querySelectorAll('.timeline-item');
     const triggerBottom = window.innerHeight * 0.85;
 
     timelineItems.forEach(item => {
@@ -750,6 +928,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadAnniversary();
   initTheme();
   loadMemories();
+  loadChapters();
   checkTimelineScroll();
 
   setTimeout(() => {
