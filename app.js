@@ -70,17 +70,33 @@ document.addEventListener('DOMContentLoaded', () => {
   let supabase = null;
   let isSyncEnabled = false;
 
+  // Default pre-connected Supabase configuration
+  const fallbackSupabaseUrl = 'https://fnzytnyxbyueeydyxqty.supabase.co';
+  const fallbackSupabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuenl0bnl4Ynl1ZWV5ZHl4cXR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTg1MDgsImV4cCI6MjA5NjMzNDUwOH0.jpLEn9-fDTSsFY6zw8r_fI3zEA6UK9MSabyFrTe8AUk';
+
   // --- Supabase Database Integration & Lifecycle ---
   const initSupabase = () => {
-    const url = localStorage.getItem('supabase_url');
-    const key = localStorage.getItem('supabase_key');
+    const isDisconnected = localStorage.getItem('supabase_disconnected') === 'true';
+    let url = localStorage.getItem('supabase_url');
+    let key = localStorage.getItem('supabase_key');
+    
+    if (isDisconnected) {
+      isSyncEnabled = false;
+      updateSyncBadge(false);
+      return;
+    }
+    
+    if (!url || !key) {
+      url = fallbackSupabaseUrl;
+      key = fallbackSupabaseKey;
+    }
     
     if (url && key) {
       try {
         // Instantiate the CDN-provided Supabase client
         supabase = window.supabase.createClient(url, key);
         isSyncEnabled = true;
-        updateSyncBadge(true);
+        updateSyncBadge(true, url, key);
       } catch (err) {
         console.error("Supabase initialization failed:", err);
         isSyncEnabled = false;
@@ -92,14 +108,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const updateSyncBadge = (connected) => {
+  const updateSyncBadge = (connected, activeUrl = '', activeKey = '') => {
     if (connected) {
       syncStatusEl.classList.remove('offline');
       syncStatusEl.classList.add('connected');
       syncStatusEl.querySelector('.sync-text').textContent = 'Cloud Connected';
       disconnectSyncBtn.style.display = 'block';
-      syncUrlInput.value = localStorage.getItem('supabase_url') || '';
-      syncKeyInput.value = localStorage.getItem('supabase_key') || '';
+      syncUrlInput.value = localStorage.getItem('supabase_url') || activeUrl;
+      syncKeyInput.value = localStorage.getItem('supabase_key') || activeKey;
     } else {
       syncStatusEl.classList.remove('connected');
       syncStatusEl.classList.add('offline');
@@ -593,6 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Connection successful: store credentials
       localStorage.setItem('supabase_url', url);
       localStorage.setItem('supabase_key', key);
+      localStorage.removeItem('supabase_disconnected');
       
       initSupabase();
       await migrateLocalDataToCloud();
@@ -614,6 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (confirm("Disconnect database sync? The website will revert to LocalStorage mode. No cloud data will be deleted.")) {
       localStorage.removeItem('supabase_url');
       localStorage.removeItem('supabase_key');
+      localStorage.setItem('supabase_disconnected', 'true');
       
       supabase = null;
       isSyncEnabled = false;
