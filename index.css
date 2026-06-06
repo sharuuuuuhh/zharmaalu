@@ -1,28 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Velvet Midnight (Dark Mode - Default) */
-  --bg-primary: #0f0a15;
-  --bg-secondary: #181122;
-  --text-primary: #f8f7f9;
-  --text-secondary: #cbbccb;
-  --accent-rose: #ff4d6d;
-  --accent-gold: #ffb703;
-  --accent-blush: #ffccd5;
-  --card-bg: rgba(24, 17, 34, 0.65);
-  --card-border: rgba(255, 77, 109, 0.15);
-  --card-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
-  --note-bg: rgba(255, 77, 109, 0.08);
-  --note-border: rgba(255, 77, 109, 0.25);
-  --note-radius: 32px 8px 32px 32px; /* Distinct organic rounded corners */
-  
-  --font-serif: 'Playfair Display', Georgia, serif;
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-[data-theme="light"] {
-  /* Rose Quartz (Light Mode) */
+  /* Rose Quartz (Light Mode - Default & Only Theme) */
   --bg-primary: #fff5f6;
   --bg-secondary: #ffe5ec;
   --text-primary: #2d1822;
@@ -36,6 +15,10 @@
   --note-bg: rgba(255, 204, 213, 0.35);
   --note-border: rgba(255, 77, 109, 0.25);
   --note-radius: 32px 32px 8px 32px;
+  
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {

@@ -8,9 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const anniversaryDateEl = document.getElementById('anniversary-date');
   const totalMemoriesEl = document.getElementById('total-memories-count');
   const galleryGrid = document.getElementById('gallery-grid-container');
-  const themeToggle = document.getElementById('theme-toggle');
-  const themeSun = document.getElementById('theme-sun');
-  const themeMoon = document.getElementById('theme-moon');
   const particlesContainer = document.getElementById('particles-container');
 
   // Music Player elements
@@ -285,35 +282,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   anniversaryDateEl.addEventListener('change', computeDaysTogether);
 
-  // --- Theme Toggle ---
+  // --- Theme Setup (Force Light Mode) ---
   const initTheme = () => {
-    const savedTheme = localStorage.getItem('us_theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    if (savedTheme === 'light') {
-      themeSun.style.display = 'block';
-      themeMoon.style.display = 'none';
-    } else {
-      themeSun.style.display = 'none';
-      themeMoon.style.display = 'block';
-    }
+    document.documentElement.setAttribute('data-theme', 'light');
   };
-
-  themeToggle.addEventListener('click', () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('us_theme', newTheme);
-    
-    if (newTheme === 'light') {
-      themeSun.style.display = 'block';
-      themeMoon.style.display = 'none';
-    } else {
-      themeSun.style.display = 'none';
-      themeMoon.style.display = 'block';
-    }
-    createSparkleBurst(20);
-  });
 
   // --- Image Upload System ---
   uploadBox.addEventListener('dragover', (e) => {
