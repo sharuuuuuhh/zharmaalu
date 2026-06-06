@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Our Love Biopic | A Beautiful Story of Us</title>
+  <meta name="description" content="An interactive romantic biopic and memory gallery capturing the beautiful moments, photos, and letters of our journey together.">
+  <link rel="stylesheet" href="index.css">
+  <!-- Supabase client JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- Background Particle Animation System -->
+  <div class="particles-container" id="particles-container"></div>
+
+  <!-- Header Navigation -->
+  <header>
+    <div class="container nav-container">
+      <a href="#" class="logo" id="nav-logo" title="Back to Top">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="var(--accent-rose)" stroke="var(--accent-rose)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+        </svg>
+        <span>Us.</span>
+      </a>
+      <nav>
+        <ul class="nav-links">
+          <li><a href="#biopic" id="link-biopic">Our Journey</a></li>
+          <li><a href="#gallery" id="link-gallery">Memory Gallery</a></li>
+          <li><a href="#add-memory" id="link-add">Add Moment</a></li>
+        </ul>
+      </nav>
+      <div class="nav-controls">
+        <!-- Cloud Sync Badge status -->
+        <span class="sync-badge offline" id="sync-status" title="Database connection status">
+          <span class="sync-dot"></span>
+          <span class="sync-text">Offline</span>
+        </span>
+        <!-- Open settings modal -->
+        <button id="sync-settings-btn" class="btn-icon" aria-label="Database Settings" title="Cloud Sync Settings">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+            <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>
+          </svg>
+        </button>
+        <button id="theme-toggle" class="btn-icon" aria-label="Toggle Theme" title="Toggle Light/Dark Theme">
+          <svg id="theme-sun" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+          </svg>
+          <svg id="theme-moon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Header / Onboarding -->
+    <section class="hero container" id="hero-section">
+      <div class="hero-glow"></div>
+      <p class="hero-tagline">A Digital Love Letter</p>
+      <h1 class="hero-title">
+        <div class="couple-names-wrapper">
+          <input type="text" id="partner-1-input" class="name-input" value="Alex" title="Click to change name" aria-label="Partner 1 Name" autocomplete="off" size="5">
+          <span class="ampersand">❤</span>
+          <input type="text" id="partner-2-input" class="name-input" value="Taylor" title="Click to change name" aria-label="Partner 2 Name" autocomplete="off" size="6">
+        </div>
+      </h1>
+      <p class="hero-subtitle">Every love story is beautiful, but ours is my absolute favorite. Scroll through our cinematic timeline and document our timeless memories below.</p>
+      <a href="#gallery" class="btn-primary" id="hero-action-btn">
+        <span>View Our Memories</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>
+        </svg>
+      </a>
+    </section>
+
+    <!-- Interactive Counter Stats Section -->
+    <section class="container" id="stats-section">
+      <div class="quick-stats">
+        <div class="stat-card" id="anniversary-card">
+          <div class="stat-number" id="days-together-count">365</div>
+          <div class="stat-label">Days Together</div>
+          <div style="margin-top: 10px;">
+            <label for="anniversary-date" style="font-size: 0.75rem; color: var(--text-secondary); cursor: pointer; display: block; margin-bottom: 4px;">Set Anniversary:</label>
+            <input type="date" id="anniversary-date" class="form-control" style="font-size: 0.8rem; padding: 4px 8px; max-width: 150px; margin: 0 auto; text-align: center;" value="2025-06-07">
+          </div>
+        </div>
+        <div class="stat-card" id="memories-count-card">
+          <div class="stat-number" id="total-memories-count">3</div>
+          <div class="stat-label">Memories Documented</div>
+        </div>
+        <div class="stat-card" id="kisses-card">
+          <div class="stat-number" id="kisses-count">10,000+</div>
+          <div class="stat-label">Warm Coffee Dates</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Biopic Chapters Timeline -->
+    <section class="biopic-section" id="biopic">
+      <div class="container">
+        <div class="section-title-wrapper">
+          <span class="section-tag">How it started</span>
+          <h2 class="section-title">Our Biopic Chapters</h2>
+        </div>
+
+        <div class="timeline" id="timeline-container">
+          <!-- Chapter 1 -->
+          <div class="timeline-item left visible">
+            <div class="timeline-content">
+              <div class="timeline-date">Chapter 1 — The Spark</div>
+              <h3>First Hello</h3>
+              <p>It started with a simple message, an accidental meeting, or a warm glance. From the very first moment, there was a quiet spark that quickly blossomed into something entirely unexpected and incredibly beautiful.</p>
+            </div>
+          </div>
+          <!-- Chapter 2 -->
+          <div class="timeline-item right visible">
+            <div class="timeline-content">
+              <div class="timeline-date">Chapter 2 — The First Date</div>
+              <h3>Coffee & Hours</h3>
+              <p>We sat down at a quiet corner table, ordering lattes we barely finished because we were too busy talking. The hours passed like minutes, and by the time we walked out, the world felt a little warmer.</p>
+            </div>
+          </div>
+          <!-- Chapter 3 -->
+          <div class="timeline-item left visible">
+            <div class="timeline-content">
+              <div class="timeline-date">Chapter 3 — Our Future</div>
+              <h3>Building Dreams</h3>
+              <p>Now, we walk together hand-in-hand, compiling a gallery of memories and dreaming up all the places we have yet to visit. Each chapter gets better, and the story is only just beginning.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Photo Gallery (Side-by-Side with Notes) -->
+    <section class="gallery-section" id="gallery">
+      <div class="container">
+        <div class="section-title-wrapper">
+          <span class="section-tag">Our Captured Moments</span>
+          <h2 class="section-title">The Memory Gallery</h2>
+        </div>
+
+        <div class="gallery-grid" id="gallery-grid-container">
+          <!-- Dynamically populated from JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Add Memory Section Form -->
+    <section class="memory-form-section" id="add-memory">
+      <div class="container">
+        <div class="section-title-wrapper">
+          <span class="section-tag">Add a New Chapter</span>
+          <h2 class="section-title">Document a Memory</h2>
+        </div>
+
+        <div class="form-card">
+          <form id="memory-form">
+            <div class="form-group">
+              <label for="memory-title">Moment Title</label>
+              <input type="text" id="memory-title" class="form-control" placeholder="e.g., Starry Walk, Beach Sunset" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="memory-date">When did this happen?</label>
+              <input type="date" id="memory-date" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label>Select Photo</label>
+              <div class="upload-container" id="upload-box">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-rose)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="upload-icon">
+                  <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                </svg>
+                <p id="upload-instructions" style="font-size: 0.95rem; color: var(--text-secondary);">Click here or drag-and-drop to upload a photo</p>
+                <input type="file" id="memory-image" accept="image/*" required>
+                <img id="upload-preview" class="upload-preview" alt="Preview">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="memory-note">Romantic Note (Side Card)</label>
+              <textarea id="memory-note" class="form-control" placeholder="Write a sweet reflection about this photograph. What makes it unforgettable?" required></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"/><path d="M12 5v14"/>
+              </svg>
+              <span>Pin to Gallery</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Ambient Audio Player Dock -->
+  <div class="audio-player-dock" id="music-player">
+    <button class="btn-icon" id="play-pause-btn" aria-label="Play Music" style="width: 38px; height: 38px; background: var(--accent-rose); border: none; color: #fff;">
+      <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <polygon points="6 3 20 12 6 21 6 3"/>
+      </svg>
+      <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none;">
+        <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+      </svg>
+    </button>
+    <div class="vinyl-disc" id="vinyl-disc">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+      </svg>
+    </div>
+    <div class="music-info">
+      <span class="music-title" id="music-track-name">Sweet Melody</span>
+      <span class="music-artist">Ambient Romance</span>
+    </div>
+    <audio id="bg-audio" loop>
+      <!-- Sweet royalty-free ambient piano track -->
+      <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    </audio>
+  </div>
+
+  <!-- Cloud Sync Settings Modal -->
+  <div class="modal-backdrop" id="sync-modal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="serif-text">Cloud Database Sync</h3>
+        <button id="close-modal-btn" class="modal-close" aria-label="Close settings">&times;</button>
+      </div>
+      <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5;">
+        Connect to a free cloud database on <strong>Supabase.com</strong> to sync your names, anniversary, and photos instantly across all devices.
+      </p>
+      <form id="sync-settings-form">
+        <div class="form-group">
+          <label for="sync-url">Supabase Project URL</label>
+          <input type="url" id="sync-url" class="form-control" placeholder="https://your-project.supabase.co" required>
+        </div>
+        <div class="form-group">
+          <label for="sync-key">Supabase Anon API Key</label>
+          <input type="text" id="sync-key" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." required>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+          <button type="submit" class="btn-primary" style="justify-content: center; width: 100%;">
+            <span>Save & Connect</span>
+          </button>
+          <button type="button" id="disconnect-sync-btn" class="btn-small delete-btn" style="justify-content: center; display: none;">
+            <span>Disconnect Cloud (Local Mode)</span>
+          </button>
+        </div>
+      </form>
+      
+      <!-- Collapsible SQL Guide -->
+      <div class="sql-guide-container" style="margin-top: 24px; border-top: 1px solid var(--card-border); padding-top: 16px;">
+        <details>
+          <summary style="cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--accent-rose);">How to setup Supabase? (Click to expand)</summary>
+          <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 12px; line-height: 1.6; max-height: 200px; overflow-y: auto;">
+            <ol style="margin-left: 16px; margin-bottom: 12px; text-align: left;">
+              <li>Create a free account on <a href="https://supabase.com" target="_blank" rel="noopener" style="color: var(--accent-rose);">Supabase.com</a>.</li>
+              <li>Create a new Project.</li>
+              <li>Go to the <strong>SQL Editor</strong> in the left menu.</li>
+              <li>Click <strong>New Query</strong>, paste the script below, and hit <strong>Run</strong>:</li>
+            </ol>
+            <pre style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; font-size: 0.75rem; border: 1px solid var(--card-border); user-select: all; text-align: left;" title="Double click to select all">
+-- Create memories table
+create table memories (
+  id bigint primary key,
+  title text not null,
+  date date not null,
+  image text not null,
+  note text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable public access
+alter table memories enable row level security;
+create policy "Public access" on memories for all using (true) with check (true);
+
+-- Create settings table
+create table settings (
+  key text primary key,
+  value text not null
+);
+
+-- Enable public access
+alter table settings enable row level security;
+create policy "Public access" on settings for all using (true) with check (true);
+            </pre>
+            <p style="margin-top: 8px; text-align: left;">5. Go to <strong>Project Settings > API</strong>, copy your <strong>Project URL</strong> and <strong>Anon Public Key</strong>, and paste them above!</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-logo">Our Love Story</div>
+      <p class="footer-text">Made with lots of love and magic.</p>
+      <p class="footer-text" style="font-size: 0.75rem; margin-top: 10px; opacity: 0.6;">© 2026. Handcrafted for a beautiful biopic memory gallery.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
