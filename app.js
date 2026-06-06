@@ -168,8 +168,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Migrate Settings keys
-      const p1 = localStorage.getItem('partner1') || 'Alex';
-      const p2 = localStorage.getItem('partner2') || 'Taylor';
+      const p1 = localStorage.getItem('partner1') || 'Sharu';
+      const p2 = localStorage.getItem('partner2') || 'Maalu';
       const annDateStr = localStorage.getItem('us_anniversary') || '2025-06-07';
 
       await supabase.from('settings').upsert([
@@ -184,8 +184,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Name Setup & Dynamic Inputs ---
   const loadNames = async () => {
-    let p1 = 'Alex';
-    let p2 = 'Taylor';
+    let p1 = 'Sharu';
+    let p2 = 'Maalu';
 
     if (isSyncEnabled && supabase) {
       try {
@@ -195,12 +195,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (d2) p2 = d2.value;
       } catch (err) {
         console.warn("Failed fetching names from database, reading local:", err);
-        p1 = localStorage.getItem('partner1') || 'Alex';
-        p2 = localStorage.getItem('partner2') || 'Taylor';
+        p1 = localStorage.getItem('partner1') || 'Sharu';
+        p2 = localStorage.getItem('partner2') || 'Maalu';
       }
     } else {
-      p1 = localStorage.getItem('partner1') || 'Alex';
-      p2 = localStorage.getItem('partner2') || 'Taylor';
+      p1 = localStorage.getItem('partner1') || 'Sharu';
+      p2 = localStorage.getItem('partner2') || 'Maalu';
     }
 
     partner1Input.value = p1;
