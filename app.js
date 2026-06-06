@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const syncKeyInput = document.getElementById('sync-key');
   const disconnectSyncBtn = document.getElementById('disconnect-sync-btn');
   const syncStatusEl = document.getElementById('sync-status');
+  const clearAllMemoriesBtn = document.getElementById('clear-all-memories-btn');
 
   // --- Default Memories Data ---
   const defaultMemories = [
@@ -143,8 +144,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const loadLocalMemoriesFallback = () => {
+    const isCleared = localStorage.getItem('us_memories_cleared') === 'true';
     memories = JSON.parse(localStorage.getItem('us_memories')) || [];
-    if (memories.length === 0) {
+    if (memories.length === 0 && !isCleared) {
       memories = [...defaultMemories];
       localStorage.setItem('us_memories', JSON.stringify(memories));
     }
@@ -370,6 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const { error } = await supabase.from('memories').insert([newMemory]);
         if (error) throw error;
+        localStorage.removeItem('us_memories_cleared');
       } catch (err) {
         alert("Failed to write to Cloud Database, writing locally instead: " + err.message);
         saveLocalMemory(newMemory);
@@ -391,6 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const saveLocalMemory = (newMemory) => {
+    localStorage.removeItem('us_memories_cleared');
     memories.unshift(newMemory);
     localStorage.setItem('us_memories', JSON.stringify(memories));
   };
@@ -616,6 +620,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
       toggleModal(false);
       createSparkleBurst(10);
+    }
+  });
+
+  clearAllMemoriesBtn.addEventListener('click', async () => {
+    if (confirm("Are you sure you want to delete ALL memories? This will permanently delete every single photo and note.")) {
+      if (confirm("Double Confirmation: This action is irreversible and will erase everything from the database and local storage. Are you absolutely sure?")) {
+        if (isSyncEnabled && supabase) {
+          try {
+            // Delete all rows in memories table
+            const { error } = await supabase.from('memories').delete().gt('id', 0);
+            if (error) throw error;
+          } catch (err) {
+            alert("Failed to delete memories from Cloud Database: " + err.message);
+            return;
+          }
+        }
+        
+        // Mark as explicitly cleared and remove from local storage
+        localStorage.setItem('us_memories_cleared', 'true');
+        localStorage.removeItem('us_memories');
+        memories = [];
+        renderGallery();
+        
+        alert("All memories have been successfully deleted!");
+        toggleModal(false);
+      }
     }
   });
 
