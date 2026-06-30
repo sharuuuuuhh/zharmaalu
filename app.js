@@ -640,12 +640,95 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Temporary store for active media edits
+  let activeEdits = {};
+
+  const renderEditMediaSection = (id, container) => {
+    container.innerHTML = `
+      <div class="edit-media-title">Manage Photos/Videos</div>
+      <div class="edit-media-grid"></div>
+      
+      <div class="form-group" style="margin-bottom: 8px;">
+        <label style="font-size: 0.75rem; margin-bottom: 2px;">Add files (Images/Videos)</label>
+        <input type="file" class="edit-media-file-input" accept="image/*,video/*" multiple style="font-size: 0.8rem; width: 100%;">
+      </div>
+      <div class="form-group" style="margin-bottom: 0;">
+        <label style="font-size: 0.75rem; margin-bottom: 2px;">Or paste URLs (comma/newline separated)</label>
+        <textarea class="edit-media-links-input" placeholder="https://example.com/extra.jpg" style="height: 40px; font-size: 0.75rem; width: 100%; border-radius: 8px; border: 1px solid var(--card-border); background: rgba(0,0,0,0.1); padding: 5px; color: var(--text-primary);"></textarea>
+      </div>
+    `;
+
+    const grid = container.querySelector('.edit-media-grid');
+    const mediaArray = activeEdits[id] || [];
+
+    mediaArray.forEach((media, index) => {
+      const item = document.createElement('div');
+      item.className = 'edit-media-item';
+      if (media.type === 'video') {
+        item.innerHTML = `
+          <video src="${media.url}" muted></video>
+          <button type="button" class="edit-media-delete">&times;</button>
+        `;
+      } else {
+        item.innerHTML = `
+          <img src="${media.url}" alt="Edit Preview">
+          <button type="button" class="edit-media-delete">&times;</button>
+        `;
+      }
+
+      item.querySelector('.edit-media-delete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        mediaArray.splice(index, 1);
+        renderEditMediaSection(id, container);
+      });
+
+      grid.appendChild(item);
+    });
+
+    const fileInput = container.querySelector('.edit-media-file-input');
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        Array.from(e.target.files).forEach(file => {
+          const isVideo = file.type.startsWith('video/');
+          const isImage = file.type.startsWith('image/');
+          if (!isImage && !isVideo) return;
+
+          const reader = new FileReader();
+          reader.onload = (fileEvent) => {
+            const fileDataUrl = fileEvent.target.result;
+            if (isImage) {
+              const img = new Image();
+              img.src = fileDataUrl;
+              img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 700;
+                const scaleSize = MAX_WIDTH / img.width;
+                canvas.width = Math.min(img.width, MAX_WIDTH);
+                canvas.height = img.width > MAX_WIDTH ? img.height * scaleSize : img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const compressed = canvas.toDataURL('image/jpeg', 0.7);
+                mediaArray.push({ type: 'image', url: compressed });
+                renderEditMediaSection(id, container);
+              };
+            } else {
+              mediaArray.push({ type: 'video', url: fileDataUrl });
+              renderEditMediaSection(id, container);
+            }
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    });
+  };
+
   const startEditNote = (id, noteTextContainer) => {
     const memory = memories.find(m => m.id === id);
     if (!memory) return;
 
     const pEl = noteTextContainer.querySelector('.note-text');
     const textareaEl = noteTextContainer.querySelector('.note-textarea');
+    const editMediaContainer = noteTextContainer.querySelector('.edit-media-container');
     const editBtn = noteTextContainer.parentElement.querySelector('.edit-btn');
     const saveBtn = noteTextContainer.parentElement.querySelector('.save-btn');
 
@@ -656,6 +739,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     editBtn.style.display = 'none';
     saveBtn.style.display = 'inline-flex';
+
+    // Parse media with backwards compatibility
+    let mediaArray = [];
+    if (memory.image) {
+      try {
+        const parsed = JSON.parse(memory.image);
+        if (Array.isArray(parsed)) {
+          mediaArray = parsed;
+        } else {
+          throw new Error();
+        }
+      } catch (e) {
+        mediaArray = [{ type: 'image', url: memory.image }];
+      }
+    } else {
+      mediaArray = [{ type: 'image', url: 'assets/starry_night.png' }];
+    }
+
+    // Copy to temp
+    activeEdits[id] = [...mediaArray];
+
+    renderEditMediaSection(id, editMediaContainer);
+    editMediaContainer.style.display = 'block';
   };
 
   const saveEditNote = async (id, noteTextContainer) => {
@@ -664,6 +770,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const pEl = noteTextContainer.querySelector('.note-text');
     const textareaEl = noteTextContainer.querySelector('.note-textarea');
+    const editMediaContainer = noteTextContainer.querySelector('.edit-media-container');
     const editBtn = noteTextContainer.parentElement.querySelector('.edit-btn');
     const saveBtn = noteTextContainer.parentElement.querySelector('.save-btn');
 
@@ -673,9 +780,37 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const linksInput = editMediaContainer.querySelector('.edit-media-links-input');
+    const rawLinks = linksInput.value.trim();
+    let parsedLinks = [];
+    if (rawLinks) {
+      parsedLinks = rawLinks.split(/[,\n]/)
+        .map(link => link.trim())
+        .filter(link => link.length > 0)
+        .map(link => {
+          const isVideoUrl = link.match(/\.(mp4|webm|ogg|mov|avi)(\?|$)/i) || link.includes('youtube.com') || link.includes('youtu.be') || link.includes('vimeo.com');
+          return {
+            type: isVideoUrl ? 'video' : 'image',
+            url: link
+          };
+        });
+    }
+
+    const finalMedia = [...(activeEdits[id] || []), ...parsedLinks];
+
+    if (finalMedia.length === 0) {
+      alert('A memory must have at least one image or video.');
+      return;
+    }
+
+    const updatedMediaString = JSON.stringify(finalMedia);
+
     if (isSyncEnabled && supabase) {
       try {
-        const { error } = await supabase.from('memories').update({ note: newNoteText }).eq('id', id);
+        const { error } = await supabase.from('memories').update({ 
+          note: newNoteText,
+          image: updatedMediaString
+        }).eq('id', id);
         if (error) throw error;
       } catch (err) {
         alert("Could not save edit to cloud database: " + err.message);
@@ -683,15 +818,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else {
       memory.note = newNoteText;
+      memory.image = updatedMediaString;
       localStorage.setItem('us_memories', JSON.stringify(memories));
     }
 
-    pEl.textContent = newNoteText;
-    pEl.style.display = 'block';
-    textareaEl.style.display = 'none';
-
-    editBtn.style.display = 'inline-flex';
-    saveBtn.style.display = 'none';
+    delete activeEdits[id];
+    editMediaContainer.style.display = 'none';
 
     await loadMemories();
     createSparkleBurst(12);
@@ -779,6 +911,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="note-text-container">
             <p class="note-text">${memory.note}</p>
             <textarea class="note-textarea" aria-label="Edit Note Content"></textarea>
+            <div class="edit-media-container" style="display: none; margin-top: 15px;"></div>
           </div>
 
           <div class="note-actions">
