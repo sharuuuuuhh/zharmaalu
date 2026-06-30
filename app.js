@@ -23,8 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const memoryDate = document.getElementById('memory-date');
   const memoryImageInput = document.getElementById('memory-image');
   const memoryNote = document.getElementById('memory-note');
+  const memoryLinksInput = document.getElementById('memory-links');
   const uploadBox = document.getElementById('upload-box');
-  const uploadPreview = document.getElementById('upload-preview');
+  const uploadPreviewGrid = document.getElementById('upload-preview-grid');
   const uploadInstructions = document.getElementById('upload-instructions');
 
   // Sync UI Elements
@@ -37,12 +38,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const disconnectSyncBtn = document.getElementById('disconnect-sync-btn');
   const syncStatusEl = document.getElementById('sync-status');
   const clearAllMemoriesBtn = document.getElementById('clear-all-memories-btn');
+  
+  // Tab Elements
   const tabMoment = document.getElementById('tab-moment');
   const tabChapter = document.getElementById('tab-chapter');
   const chapterForm = document.getElementById('chapter-form');
-
-  // --- Default Memories Data ---
-  const defaultMemories = [];
 
   // --- Default Chapters Data ---
   const defaultChapters = [
@@ -50,19 +50,19 @@ document.addEventListener('DOMContentLoaded', () => {
       id: 1,
       date: "Chapter 1 — The First Meet",
       title: "How They Met",
-      note: "They first met at the College, When they met they didnt know about all the things that is waiting for them."
+      note: "They first met at college. When they met, they didn't know about all the things waiting for them."
     },
     {
       id: 2,
-      date: "Chapter 2 — The Second Chapter",
+      date: "Chapter 2 — The Friendship",
       title: "The Friendship Stage",
-      note: "They became so thick friends randomly, He started messaging her, She kinda responded, Still they didnt know that they secretly loved each other"
+      note: "They became thick friends randomly. He started messaging her, she responded, and they secretly started falling in love."
     },
     {
       id: 3,
-      date: "Chapter 3 — Relation Phase",
+      date: "Chapter 3 — Our Relation",
       title: "The Proposal",
-      note: "That wasnt actually a proposal, It happened on 10th May 2026 at night, Sharu had a function to attend he was kinda in a bad mood, He called her, she comforted him, After some time they both messaged, Sharu kinda said 'ik uk' type thing, then they both knew that they loved each other, kinda a proposal, Then they became in a relation..."
+      note: "It happened on 10th May 2026. Sharu called her in a bad mood, she comforted him, and they both realized they loved each other, entering into a beautiful relation."
     }
   ];
 
@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let chapters = [];
   let supabase = null;
   let isSyncEnabled = false;
+  let currentUploadedMedia = []; // In-memory array for uploading multiple items
 
   // Default pre-connected Supabase configuration
   const fallbackSupabaseUrl = 'https://fnzytnyxbyueeydyxqty.supabase.co';
@@ -81,21 +82,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const isDisconnected = localStorage.getItem('supabase_disconnected') === 'true';
     let url = localStorage.getItem('supabase_url');
     let key = localStorage.getItem('supabase_key');
-    
+
     if (isDisconnected) {
       isSyncEnabled = false;
       updateSyncBadge(false);
       return;
     }
-    
+
     if (!url || !key) {
       url = fallbackSupabaseUrl;
       key = fallbackSupabaseKey;
     }
-    
+
     if (url && key) {
       try {
-        // Instantiate the CDN-provided Supabase client
         supabase = window.supabase.createClient(url, key);
         isSyncEnabled = true;
         updateSyncBadge(true, url, key);
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
           .from('memories')
           .select('*')
           .order('id', { ascending: false });
-        
+
         if (error) throw error;
         memories = data || [];
       } catch (err) {
@@ -151,8 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const isCleared = localStorage.getItem('us_memories_cleared') === 'true';
     memories = JSON.parse(localStorage.getItem('us_memories')) || [];
     if (memories.length === 0 && !isCleared) {
-      memories = [...defaultMemories];
-      localStorage.setItem('us_memories', JSON.stringify(memories));
+      localStorage.setItem('us_memories', JSON.stringify([]));
     }
   };
 
@@ -165,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
           .select('value')
           .eq('key', 'chapters')
           .maybeSingle();
-        
+
         if (data && data.value) {
           chapters = JSON.parse(data.value);
         } else {
@@ -213,9 +212,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const renderTimeline = () => {
     const timelineContainer = document.getElementById('timeline-container');
     if (!timelineContainer) return;
-    
+
     timelineContainer.innerHTML = '';
-    
+
     if (chapters.length === 0) {
       timelineContainer.innerHTML = `
         <div style="text-align: center; padding: 40px; color: var(--text-secondary); width: 100%;">
@@ -229,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const isLeft = index % 2 === 0;
       const item = document.createElement('div');
       item.className = `timeline-item ${isLeft ? 'left' : 'right'} visible`;
-      
+
       item.innerHTML = `
         <div class="timeline-content" style="position: relative;">
           <div class="timeline-date">${chapter.date}</div>
@@ -242,30 +241,28 @@ document.addEventListener('DOMContentLoaded', () => {
           </button>
         </div>
       `;
-      
+
       const deleteBtn = item.querySelector('.delete-chapter-btn');
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         deleteChapter(chapter.id);
       });
-      
+
       item.addEventListener('mouseenter', () => { deleteBtn.style.opacity = '1'; });
       item.addEventListener('mouseleave', () => { deleteBtn.style.opacity = '0.5'; });
 
       timelineContainer.appendChild(item);
     });
-    
-    // Recalculate timeline scroll triggers
+
     checkTimelineScroll();
   };
 
   const migrateLocalDataToCloud = async () => {
     if (!supabase) return;
     try {
-      // Fetch cloud IDs to prevent duplicate inserts
       const { data: cloudData, error: fetchErr } = await supabase.from('memories').select('id');
       if (fetchErr) throw fetchErr;
-      
+
       const cloudIds = new Set((cloudData || []).map(item => Number(item.id)));
       const localMemories = JSON.parse(localStorage.getItem('us_memories')) || [];
       const toUpload = localMemories.filter(m => !cloudIds.has(Number(m.id)));
@@ -276,7 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`Successfully migrated ${toUpload.length} local memories to the cloud!`);
       }
 
-      // Migrate Settings keys
       const p1 = localStorage.getItem('partner1') || 'Sharu';
       const p2 = localStorage.getItem('partner2') || 'Maalu';
       const annDateStr = localStorage.getItem('us_anniversary') || '2025-06-07';
@@ -294,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       await supabase.from('settings').upsert(settingsUpserts);
     } catch (err) {
-      console.warn("Migration failed. Please check table structure in Supabase SQL editor:", err);
+      console.warn("Migration failed:", err);
     }
   };
 
@@ -332,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveNames = async () => {
     const p1 = partner1Input.value;
     const p2 = partner2Input.value;
-    
+
     localStorage.setItem('partner1', p1);
     localStorage.setItem('partner2', p2);
     adjustInputSize(partner1Input);
@@ -363,17 +359,19 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Failed saving anniversary date to cloud database:", err);
       }
     }
-    
+
+    updateCountdownOrb();
+
     if (!annDateStr) return;
     const annDate = new Date(annDateStr);
     const today = new Date();
-    
+
     annDate.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
 
     const diffTime = today.getTime() - annDate.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
+
     daysCountEl.textContent = diffDays >= 0 ? diffDays.toLocaleString() : "Counting down!";
   };
 
@@ -398,12 +396,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
   anniversaryDateEl.addEventListener('change', computeDaysTogether);
 
-  // --- Theme Setup (Force Light Mode) ---
+  // --- Theme Setup ---
   const initTheme = () => {
-    document.documentElement.setAttribute('data-theme', 'light');
+    const savedTheme = localStorage.getItem('us_theme') || 'dark'; // Dark Velvet Midnight by default
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    const themeSun = document.getElementById('theme-sun');
+    const themeMoon = document.getElementById('theme-moon');
+    
+    if (themeSun && themeMoon) {
+      if (savedTheme === 'light') {
+        themeSun.style.display = 'block';
+        themeMoon.style.display = 'none';
+      } else {
+        themeSun.style.display = 'none';
+        themeMoon.style.display = 'block';
+      }
+    }
   };
 
-  // --- Image Upload System ---
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('us_theme', newTheme);
+    
+    const themeSun = document.getElementById('theme-sun');
+    const themeMoon = document.getElementById('theme-moon');
+    if (themeSun && themeMoon) {
+      if (newTheme === 'light') {
+        themeSun.style.display = 'block';
+        themeMoon.style.display = 'none';
+      } else {
+        themeSun.style.display = 'none';
+        themeMoon.style.display = 'block';
+      }
+    }
+    createSparkleBurst(25);
+  });
+
+  // --- Multiple Image/Video Upload System ---
   uploadBox.addEventListener('dragover', (e) => {
     e.preventDefault();
     uploadBox.style.borderColor = 'var(--accent-rose)';
@@ -418,67 +450,143 @@ document.addEventListener('DOMContentLoaded', () => {
     uploadBox.style.borderColor = 'var(--card-border)';
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      memoryImageInput.files = files;
-      handleFileSelected(files[0]);
+      handleMultipleFilesSelected(files);
     }
   });
 
   memoryImageInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-      handleFileSelected(e.target.files[0]);
+      handleMultipleFilesSelected(e.target.files);
     }
   });
 
-  const handleFileSelected = (file) => {
-    if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file.');
+  const handleMultipleFilesSelected = (files) => {
+    Array.from(files).forEach(file => {
+      const isVideo = file.type.startsWith('video/');
+      const isImage = file.type.startsWith('image/');
+      
+      if (!isImage && !isVideo) {
+        alert('File format not supported. Please select images or videos.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const fileDataUrl = e.target.result;
+        
+        if (isImage) {
+          // Compress image base64 size slightly to fit storage policies
+          const img = new Image();
+          img.src = fileDataUrl;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 700;
+            const scaleSize = MAX_WIDTH / img.width;
+            
+            canvas.width = Math.min(img.width, MAX_WIDTH);
+            canvas.height = img.width > MAX_WIDTH ? img.height * scaleSize : img.height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            const compressed = canvas.toDataURL('image/jpeg', 0.7);
+            addMediaToPreviewList('image', compressed);
+          };
+        } else {
+          // Videos are stored directly (warn for size limit)
+          if (file.size > 2.5 * 1024 * 1024) {
+            alert('Video file is slightly large. Direct uploads work best with clips under 2.5MB. For longer videos, please paste the video URL below.');
+          }
+          addMediaToPreviewList('video', fileDataUrl);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const addMediaToPreviewList = (type, url) => {
+    currentUploadedMedia.push({ type, url });
+    renderUploadPreviewGrid();
+  };
+
+  const removeMediaFromPreviewList = (index) => {
+    currentUploadedMedia.splice(index, 1);
+    renderUploadPreviewGrid();
+  };
+
+  const renderUploadPreviewGrid = () => {
+    uploadPreviewGrid.innerHTML = '';
+    
+    if (currentUploadedMedia.length === 0) {
+      uploadInstructions.style.display = 'block';
       return;
     }
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      // Compress to Jpeg to limit Base64 storage payload size
-      const img = new Image();
-      img.src = e.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 700; // slightly smaller resolution for fast DB upload
-        const scaleSize = MAX_WIDTH / img.width;
-        
-        canvas.width = Math.min(img.width, MAX_WIDTH);
-        canvas.height = img.width > MAX_WIDTH ? img.height * scaleSize : img.height;
-        
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-        uploadPreview.src = compressedDataUrl;
-        uploadPreview.style.display = 'block';
-        uploadInstructions.style.display = 'none';
-      };
-    };
-    reader.readAsDataURL(file);
+
+    uploadInstructions.style.display = 'none';
+
+    currentUploadedMedia.forEach((media, index) => {
+      const item = document.createElement('div');
+      item.className = 'upload-preview-item';
+      
+      if (media.type === 'video') {
+        item.innerHTML = `
+          <video src="${media.url}" muted></video>
+          <button type="button" class="upload-preview-delete">&times;</button>
+        `;
+      } else {
+        item.innerHTML = `
+          <img src="${media.url}" alt="Preview">
+          <button type="button" class="upload-preview-delete">&times;</button>
+        `;
+      }
+
+      item.querySelector('.upload-preview-delete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeMediaFromPreviewList(index);
+      });
+
+      uploadPreviewGrid.appendChild(item);
+    });
   };
 
   // --- Add Memory Form Submit ---
   memoryForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const title = memoryTitle.value.trim();
     const date = memoryDate.value;
     const note = memoryNote.value.trim();
-    const imageSrc = uploadPreview.src;
+    
+    // Parse links from textarea
+    const rawLinks = memoryLinksInput.value.trim();
+    let parsedLinks = [];
+    if (rawLinks) {
+      parsedLinks = rawLinks.split(/[,\n]/)
+        .map(link => link.trim())
+        .filter(link => link.length > 0)
+        .map(link => {
+          const isVideoUrl = link.match(/\.(mp4|webm|ogg|mov|avi)(\?|$)/i) || link.includes('youtube.com') || link.includes('youtu.be') || link.includes('vimeo.com');
+          return {
+            type: isVideoUrl ? 'video' : 'image',
+            url: link
+          };
+        });
+    }
 
-    if (!imageSrc || uploadPreview.style.display === 'none') {
-      alert('Please upload or drop an image first.');
+    // Merge uploaded local files and pasted external URLs
+    const finalMedia = [...currentUploadedMedia, ...parsedLinks];
+
+    if (finalMedia.length === 0) {
+      alert('Please upload files or paste links to media first.');
       return;
     }
 
+    // Store the JSON string array in 'image' field for backwards compatibility with database text schemas
     const newMemory = {
       id: Date.now(),
       title,
       date,
-      image: imageSrc,
+      image: JSON.stringify(finalMedia),
       note
     };
 
@@ -494,79 +602,16 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       saveLocalMemory(newMemory);
     }
-    
+
     // Reset Form fields
     memoryForm.reset();
-    uploadPreview.style.display = 'none';
-    uploadPreview.src = '';
-    uploadInstructions.style.display = 'block';
+    currentUploadedMedia = [];
+    renderUploadPreviewGrid();
 
     await loadMemories();
     createSparkleBurst(25);
-    
+
     document.getElementById('gallery').scrollIntoView({ behavior: 'smooth' });
-  });
-
-  // --- Form Tab Switching ---
-  tabMoment.addEventListener('click', () => {
-    tabMoment.classList.add('active');
-    tabMoment.style.background = 'var(--accent-rose)';
-    tabMoment.style.color = 'white';
-    tabMoment.style.border = 'none';
-
-    tabChapter.classList.remove('active');
-    tabChapter.style.background = 'transparent';
-    tabChapter.style.color = 'var(--text-primary)';
-    tabChapter.style.border = '1px solid var(--card-border)';
-
-    memoryForm.style.display = 'block';
-    chapterForm.style.display = 'none';
-  });
-
-  tabChapter.addEventListener('click', () => {
-    tabChapter.classList.add('active');
-    tabChapter.style.background = 'var(--accent-rose)';
-    tabChapter.style.color = 'white';
-    tabChapter.style.border = 'none';
-
-    tabMoment.classList.remove('active');
-    tabMoment.style.background = 'transparent';
-    tabMoment.style.color = 'var(--text-primary)';
-    tabMoment.style.border = '1px solid var(--card-border)';
-
-    chapterForm.style.display = 'block';
-    memoryForm.style.display = 'none';
-  });
-
-  // --- Add Chapter Form Submit ---
-  const chapterDateInput = document.getElementById('chapter-date');
-  const chapterTitleInput = document.getElementById('chapter-title');
-  const chapterNoteInput = document.getElementById('chapter-note');
-
-  chapterForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const date = chapterDateInput.value.trim();
-    const title = chapterTitleInput.value.trim();
-    const note = chapterNoteInput.value.trim();
-
-    const newChapter = {
-      id: Date.now(),
-      date,
-      title,
-      note
-    };
-
-    chapters.push(newChapter);
-    await saveChapters();
-    
-    // Reset Form fields
-    chapterForm.reset();
-
-    await loadChapters();
-    createSparkleBurst(25);
-    
-    document.getElementById('biopic').scrollIntoView({ behavior: 'smooth' });
   });
 
   const saveLocalMemory = (newMemory) => {
@@ -652,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
     createSparkleBurst(12);
   };
 
-  // --- Render Gallery Grid ---
+  // --- Render Gallery Grid with Carousel and Backward Compatibility ---
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
@@ -672,14 +717,60 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     memories.forEach(memory => {
+      // Parse media files with backward compatibility fallback
+      let mediaArray = [];
+      if (memory.image) {
+        try {
+          const parsed = JSON.parse(memory.image);
+          if (Array.isArray(parsed)) {
+            mediaArray = parsed;
+          } else {
+            throw new Error();
+          }
+        } catch (e) {
+          mediaArray = [{ type: 'image', url: memory.image }];
+        }
+      } else {
+        mediaArray = [{ type: 'image', url: 'assets/starry_night.png' }];
+      }
+
       const card = document.createElement('article');
       card.className = 'gallery-item';
       card.id = `memory-${memory.id}`;
 
+      // Build media markup
+      let mediaMarkup = '';
+      if (mediaArray.length === 1) {
+        const m = mediaArray[0];
+        mediaMarkup = m.type === 'video'
+          ? `<video src="${m.url}" controls class="gallery-img"></video>`
+          : `<img src="${m.url}" alt="${memory.title}" class="gallery-img" loading="lazy">`;
+      } else {
+        // Build interactive Carousel
+        mediaMarkup = `
+          <div class="carousel-container">
+            <div class="carousel-track">
+              ${mediaArray.map(m => `
+                <div class="carousel-slide">
+                  ${m.type === 'video' 
+                    ? `<video src="${m.url}" controls></video>` 
+                    : `<img src="${m.url}" alt="${memory.title}" loading="lazy">`}
+                </div>
+              `).join('')}
+            </div>
+            <button type="button" class="carousel-btn prev" aria-label="Previous">&lt;</button>
+            <button type="button" class="carousel-btn next" aria-label="Next">&gt;</button>
+            <div class="carousel-dots">
+              ${mediaArray.map((_, i) => `<span class="carousel-dot ${i === 0 ? 'active' : ''}" data-index="${i}"></span>`).join('')}
+            </div>
+          </div>
+        `;
+      }
+
       card.innerHTML = `
         <div class="gallery-media">
           <div class="photo-overlay">${formatDate(memory.date)}</div>
-          <img src="${memory.image}" alt="${memory.title}" loading="lazy">
+          ${mediaMarkup}
         </div>
         <div class="gallery-note-section">
           <span class="note-tag">Our Memory</span>
@@ -713,6 +804,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
 
+      // Assign event listeners
       const textContainer = card.querySelector('.note-text-container');
       const editBtn = card.querySelector('.edit-btn');
       const saveBtn = card.querySelector('.save-btn');
@@ -724,9 +816,109 @@ document.addEventListener('DOMContentLoaded', () => {
 
       galleryGrid.appendChild(card);
     });
+
+    // Initialize carousels handlers
+    initializeCarousels();
   };
 
-  // --- Modal Config Controllers ---
+  const initializeCarousels = () => {
+    const carousels = galleryGrid.querySelectorAll('.carousel-container');
+    carousels.forEach(carousel => {
+      const track = carousel.querySelector('.carousel-track');
+      const slides = carousel.querySelectorAll('.carousel-slide');
+      const prevBtn = carousel.querySelector('.carousel-btn.prev');
+      const nextBtn = carousel.querySelector('.carousel-btn.next');
+      const dots = carousel.querySelectorAll('.carousel-dot');
+      let index = 0;
+
+      const slideTo = (idx) => {
+        index = (idx + slides.length) % slides.length;
+        track.style.transform = `translateX(-${index * 100}%)`;
+        dots.forEach((dot, dIdx) => {
+          dot.classList.toggle('active', dIdx === index);
+        });
+      };
+
+      prevBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        slideTo(index - 1);
+      });
+
+      nextBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        slideTo(index + 1);
+      });
+
+      dots.forEach((dot, dIdx) => {
+        dot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          slideTo(dIdx);
+        });
+      });
+    });
+  };
+
+  // --- Form Tab Switching ---
+  tabMoment.addEventListener('click', () => {
+    tabMoment.classList.add('active');
+    tabMoment.style.background = 'var(--accent-rose)';
+    tabMoment.style.color = 'white';
+    tabMoment.style.border = 'none';
+
+    tabChapter.classList.remove('active');
+    tabChapter.style.background = 'transparent';
+    tabChapter.style.color = 'var(--text-primary)';
+    tabChapter.style.border = '1px solid var(--card-border)';
+
+    memoryForm.style.display = 'block';
+    chapterForm.style.display = 'none';
+  });
+
+  tabChapter.addEventListener('click', () => {
+    tabChapter.classList.add('active');
+    tabChapter.style.background = 'var(--accent-rose)';
+    tabChapter.style.color = 'white';
+    tabChapter.style.border = 'none';
+
+    tabMoment.classList.remove('active');
+    tabMoment.style.background = 'transparent';
+    tabMoment.style.color = 'var(--text-primary)';
+    tabMoment.style.border = '1px solid var(--card-border)';
+
+    chapterForm.style.display = 'block';
+    memoryForm.style.display = 'none';
+  });
+
+  // --- Add Chapter Form Submit ---
+  const chapterDateInput = document.getElementById('chapter-date');
+  const chapterTitleInput = document.getElementById('chapter-title');
+  const chapterNoteInput = document.getElementById('chapter-note');
+
+  chapterForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const date = chapterDateInput.value.trim();
+    const title = chapterTitleInput.value.trim();
+    const note = chapterNoteInput.value.trim();
+
+    const newChapter = {
+      id: Date.now(),
+      date,
+      title,
+      note
+    };
+
+    chapters.push(newChapter);
+    await saveChapters();
+
+    chapterForm.reset();
+    await loadChapters();
+    createSparkleBurst(25);
+
+    document.getElementById('biopic').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  // --- Modal Settings Controllers ---
   const toggleModal = (show) => {
     if (show) {
       syncModal.classList.add('active');
@@ -752,21 +944,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!url || !key) return;
 
     try {
-      // Create temporary client and test select query
       const testClient = window.supabase.createClient(url, key);
       const { error } = await testClient.from('memories').select('id').limit(1);
-      
+
       if (error) throw error;
 
-      // Connection successful: store credentials
       localStorage.setItem('supabase_url', url);
       localStorage.setItem('supabase_key', key);
       localStorage.removeItem('supabase_disconnected');
-      
+
       initSupabase();
       await migrateLocalDataToCloud();
-      
-      // Load all variables from cloud
+
       await loadNames();
       await loadAnniversary();
       await loadMemories();
@@ -776,21 +965,20 @@ document.addEventListener('DOMContentLoaded', () => {
       toggleModal(false);
       createSparkleBurst(25);
     } catch (err) {
-      alert("Database connection test failed. Please verify your URL, Anon Key, and ensure you ran the table creation script in Supabase's SQL Editor.\n\nError: " + err.message);
+      alert("Database connection test failed. Please verify credentials.\n\nError: " + err.message);
     }
   });
 
   disconnectSyncBtn.addEventListener('click', () => {
-    if (confirm("Disconnect database sync? The website will revert to LocalStorage mode. No cloud data will be deleted.")) {
+    if (confirm("Disconnect database sync? Reverting to LocalStorage mode.")) {
       localStorage.removeItem('supabase_url');
       localStorage.removeItem('supabase_key');
       localStorage.setItem('supabase_disconnected', 'true');
-      
+
       supabase = null;
       isSyncEnabled = false;
       updateSyncBadge(false);
 
-      // Re-trigger local page loads
       loadNames();
       loadAnniversary();
       loadMemories();
@@ -802,11 +990,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   clearAllMemoriesBtn.addEventListener('click', async () => {
-    if (confirm("Are you sure you want to delete ALL memories? This will permanently delete every single photo and note.")) {
-      if (confirm("Double Confirmation: This action is irreversible and will erase everything from the database and local storage. Are you absolutely sure?")) {
+    if (confirm("Are you sure you want to delete ALL memories? This will permanently delete every photo and note.")) {
+      if (confirm("Double Confirmation: This action is irreversible. Are you absolutely sure?")) {
         if (isSyncEnabled && supabase) {
           try {
-            // Delete all rows in memories table
             const { error } = await supabase.from('memories').delete().gt('id', 0);
             if (error) throw error;
           } catch (err) {
@@ -814,14 +1001,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
           }
         }
-        
-        // Mark as explicitly cleared and remove from local storage
+
         localStorage.setItem('us_memories_cleared', 'true');
         localStorage.removeItem('us_memories');
         memories = [];
         renderGallery();
-        
-        alert("All memories have been successfully deleted!");
+
+        alert("All memories have been deleted!");
         toggleModal(false);
       }
     }
@@ -852,15 +1038,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const particle = document.createElement('span');
     particle.className = 'particle';
     particle.innerHTML = '❤';
-    
+
     const size = Math.random() * 20 + 10;
     const duration = Math.random() * 2 + 1.5;
-    
+
     particle.style.left = `${x - size / 2}px`;
     particle.style.top = `${y - size / 2}px`;
     particle.style.fontSize = `${size}px`;
     particle.style.color = Math.random() > 0.4 ? 'var(--accent-rose)' : 'var(--accent-blush)';
-    
+
     const drift = (Math.random() - 0.5) * 120;
     particle.style.setProperty('--drift', `${drift}px`);
     particle.style.animation = `floatUp ${duration}s cubic-bezier(0.25, 1, 0.5, 1) forwards`;
@@ -885,12 +1071,12 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.addEventListener('click', (e) => {
-    if (e.target.tagName !== 'BUTTON' && 
-        e.target.tagName !== 'INPUT' && 
-        e.target.tagName !== 'TEXTAREA' && 
-        e.target.tagName !== 'A' &&
-        !e.target.closest('button') &&
-        !e.target.closest('a')) {
+    if (e.target.tagName !== 'BUTTON' &&
+      e.target.tagName !== 'INPUT' &&
+      e.target.tagName !== 'TEXTAREA' &&
+      e.target.tagName !== 'A' &&
+      !e.target.closest('button') &&
+      !e.target.closest('a')) {
       for (let i = 0; i < 4; i++) {
         setTimeout(() => {
           createHeartParticle(e.clientX + (Math.random() - 0.5) * 30, e.clientY + (Math.random() - 0.5) * 30);
@@ -922,6 +1108,86 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.addEventListener('scroll', checkTimelineScroll);
 
+  // --- 3D Interactive Card Tilting ---
+  galleryGrid.addEventListener('mousemove', (e) => {
+    const card = e.target.closest('.gallery-item');
+    if (!card) return;
+
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const rotateX = ((centerY - y) / centerY) * 12;
+    const rotateY = ((x - centerX) / centerX) * 12;
+
+    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+  });
+
+  galleryGrid.addEventListener('mouseleave', (e) => {
+    const card = e.target.closest('.gallery-item');
+    if (!card) return;
+    card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)`;
+  }, true);
+
+  // --- Sparkle Mouse Follower Trail ---
+  let lastSparkleTime = 0;
+  window.addEventListener('mousemove', (e) => {
+    const now = Date.now();
+    if (now - lastSparkleTime < 80) return;
+    lastSparkleTime = now;
+
+    const sparkle = document.createElement('span');
+    sparkle.className = 'cursor-sparkle';
+
+    const symbols = ['💖', '✨', '💝', '⭐', '🎈', '❤️'];
+    sparkle.innerHTML = symbols[Math.floor(Math.random() * symbols.length)];
+
+    sparkle.style.left = `${e.clientX}px`;
+    sparkle.style.top = `${e.clientY}px`;
+
+    const scale = Math.random() * 0.6 + 0.6;
+    const rotation = Math.random() * 360;
+    sparkle.style.transform = `translate(-50%, -50%) scale(${scale}) rotate(${rotation}deg)`;
+
+    document.body.appendChild(sparkle);
+
+    setTimeout(() => {
+      sparkle.remove();
+    }, 900);
+  });
+
+  // --- Floating Anniversary Countdown Orb ---
+  const updateCountdownOrb = () => {
+    const annDateStr = anniversaryDateEl.value || localStorage.getItem('us_anniversary') || '2025-06-07';
+    const daysTextEl = document.getElementById('countdown-days');
+    if (!daysTextEl) return;
+
+    if (!annDateStr) {
+      daysTextEl.textContent = '??';
+      return;
+    }
+
+    const annDate = new Date(annDateStr);
+    const today = new Date();
+
+    let nextAnniversary = new Date(today.getFullYear(), annDate.getMonth(), annDate.getDate());
+
+    if (today.getTime() > nextAnniversary.getTime()) {
+      nextAnniversary.setFullYear(today.getFullYear() + 1);
+    }
+
+    today.setHours(0, 0, 0, 0);
+    nextAnniversary.setHours(0, 0, 0, 0);
+
+    const diffTime = nextAnniversary.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    daysTextEl.textContent = diffDays;
+  };
+
   // --- Initial Page Load Sequence ---
   initSupabase();
   loadNames();
@@ -935,4 +1201,3 @@ document.addEventListener('DOMContentLoaded', () => {
     createSparkleBurst(8);
   }, 1000);
 });
-
